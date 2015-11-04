@@ -305,11 +305,7 @@ process.HIPAnalysis = cms.EDAnalyzer('SiStripHIPAnalysis',
 #'root://eoscms//eos/cms/store/group/dpg_tracker_strip/comm_tracker/Strip/Calibration/calibrationtree/GR15/calibTree_260541_25.root',
 #'root://eoscms//eos/cms/store/group/dpg_tracker_strip/comm_tracker/Strip/Calibration/calibrationtree/GR15/calibTree_260576_100.root',
         ),
-#    , tracks = cms.untracked.InputTag('ctfWithMaterialTracks')
+    output = cms.string('output.root')
 )
-
-process.TFileService = cms.Service("TFileService",
-    fileName = cms.string('histo.root')
- )
 
 process.p = cms.Path(process.HIPAnalysis)
