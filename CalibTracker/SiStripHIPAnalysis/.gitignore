@@ -1,2 +1,8 @@
+# python stuff
+*.pyc
+
 # ROOT Stuff
 *.root
+
+# CRAB3 stuff
+crab_*

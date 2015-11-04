@@ -39,6 +39,7 @@
 
 #include <CalibTracker/TreeWrapper/interface/TreeWrapper.h>
 #include <string>
+#include <algorithm>
 
 #define BRANCH(NAME, ...) __VA_ARGS__& NAME = tree[#NAME].write<__VA_ARGS__>()
 
@@ -50,14 +51,11 @@ class SiStripHIPAnalysis : public edm::EDAnalyzer {
     public:
         SiStripHIPAnalysis(const edm::ParameterSet& iConfig):
             VInputFiles(iConfig.getUntrackedParameter<std::vector<std::string>>("InputFiles")),
+            m_max_events_per_file(iConfig.getUntrackedParameter<Long64_t>("maxEventsPerFile")),
             m_output_filename(iConfig.getParameter<std::string>("output")),
             tree(tree_)
         {
             m_output.reset(TFile::Open(m_output_filename.c_str(), "recreate"));
-            NEvents = 0;
-            NTracks = 0;
-            NTotClusters = 0;
-            NClusters = 0;
         }
 
         ~SiStripHIPAnalysis();
@@ -71,40 +69,29 @@ class SiStripHIPAnalysis : public edm::EDAnalyzer {
 
         // ----------member data ---------------------------
         std::vector<std::string> VInputFiles;
-
+        Long64_t m_max_events_per_file;
         std::string m_output_filename;
         std::unique_ptr<TFile> m_output;
         TTree* tree_ = new TTree("t", "t");
         ROOT::TreeWrapper tree;
 
-        BRANCH(blabla, int);
-        unsigned int NEvents;    
-        unsigned int NTracks;
-        unsigned int NTotClusters;
-        unsigned int NClusters;
+        BRANCH(run, unsigned int);
+        BRANCH(event, unsigned int);
+        BRANCH(nTotEvents, unsigned int);
+        BRANCH(nEvents, unsigned int);
+        BRANCH(nTotTracks, unsigned int);
+        BRANCH(nTracks, unsigned int);
+        BRANCH(nTotClusters, unsigned int);
+        BRANCH(nClusters, unsigned int);
+        BRANCH(nSaturatedStrips, std::vector<int>);
         class isEqual{
             public:
 		        template <class T> bool operator () (const T& PseudoDetId1, const T& PseudoDetId2) { return PseudoDetId1==PseudoDetId2; }
         };
 };
 
-//
-// constants, enums and typedefs
-//
-
-//
-// static data member definitions
-//
-
-//
-// constructors and destructor
-//
-
 SiStripHIPAnalysis::~SiStripHIPAnalysis()
 {
- 
-    // do anything here that needs to be done at desctruction time
-    // (e.g. close files, deallocate resources etc.)
     m_output->Close();
 }
 
@@ -119,6 +106,7 @@ SiStripHIPAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
 {
     for(unsigned int i=0;i<VInputFiles.size();i++)
     {
+        std::cout << std::endl << "-----" << std::endl;
         printf("Opening file %3i/%3i --> %s\n",i+1, (int)VInputFiles.size(), (char*)(VInputFiles[i].c_str())); fflush(stdout);
         TChain* intree = new TChain("gainCalibrationTree/tree");
         intree->Add(VInputFiles[i].c_str());
@@ -159,44 +147,57 @@ SiStripHIPAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
         std::vector<unsigned char>*  amplitude      = 0;    intree->SetBranchAddress(CalibPrefix + "amplitude"      + CalibSuffix, &amplitude     , NULL);
         std::vector<double>*         gainused       = 0;    intree->SetBranchAddress(CalibPrefix + "gainused"       + CalibSuffix, &gainused      , NULL);
 
-        printf("Number of Events = %i + %i = %i\n",NEvents,(unsigned int)intree->GetEntries(),(unsigned int)(NEvents+intree->GetEntries()));
-        int TreeStep = intree->GetEntries()/50;if(TreeStep<=1)TreeStep=1;
+        nTotEvents = nEvents = 0;
+        nTotTracks = nTracks = 0;
+        nTotClusters = nClusters = 0;
+
+        printf("Number of Events = %i + %i = %i\n", nTotEvents, (unsigned int)intree->GetEntries(), (unsigned int)(nEvents + intree->GetEntries()));
+        int TreeStep = intree->GetEntries() / 50; if(TreeStep <= 1) TreeStep = 1;
         printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
         printf("Looping on the Tree          :");
-//        for (unsigned int ientry = 0; ientry < intree->GetEntries(); ientry++)
-        for (unsigned int ientry = 0; ientry < 10; ientry++)
+        unsigned int maxEntries = m_max_events_per_file > 0 ? std::min(m_max_events_per_file, (Long64_t)intree->GetEntries()) : intree->GetEntries();
+        for (unsigned int ientry = 0; ientry < maxEntries; ientry++)
         {
-            if (ientry%TreeStep==0)
-                printf(".");fflush(stdout);
+            run = runnumber;
+            event = eventnumber;
+            if (ientry % TreeStep == 0)
+            {
+                printf(".");
+                fflush(stdout);
+            }
             intree->GetEntry(ientry);
 
-            NEvents++;
-            NTracks += (*trackp).size();
+            nTotEvents++;
+            nTotTracks += (*trackp).size();
+            nTotClusters += (*chargeoverpath).size();
 
         	unsigned int FirstAmplitude = 0;
+            nClusters = 0;
+            nSaturatedStrips.clear();
             for (unsigned int i = 0; i < (*chargeoverpath).size(); i++)
             { // Loop over clusters
-                NTotClusters++;
                 if (!(*saturation)[i]) continue;
                 
                 FirstAmplitude += (*nstrips)[i];
-                int NSaturatedStrips = 0;
-                for (unsigned int s = 0; (s < (*nstrips)[i]) && (NSaturatedStrips < 3) ; s++)
+                int nSaturatedStrips_ = 0;
+                for (unsigned int s = 0; s < (*nstrips)[i]; s++)
                 {
                     int StripCharge =  (*amplitude)[FirstAmplitude - (*nstrips)[i] + s];
                     if (StripCharge > 253)
-                        NSaturatedStrips++;
+                        nSaturatedStrips_++;
                 }
-                if (NSaturatedStrips >= 3)
-                    NClusters++;
+                nSaturatedStrips.push_back(nSaturatedStrips_);
+                if (nSaturatedStrips_ >= 3)
+                    nClusters++;
 
             }// End of loop over clusters
+            if (nClusters > 0)
+                nEvents++;
 
         }printf("\n");// End of loop over events
 
-    std::cout << "NEvents= " << NEvents << "\tNTracks= " << NTracks << "\tNClusters / NTotClusters= " << NClusters << " / " << NTotClusters << std::endl;   
+    std::cout << "nEvents / nTotEvents= " << nEvents << " / " << nTotEvents << "\tnTracks / nTotTracks= " << nTracks << " / " << nTotTracks << "\tnClusters / nTotClusters= " << nClusters << " / " << nTotClusters << std::endl;   
 
-    blabla = 5;
     tree.fill();
 
     } // End of loop over files
