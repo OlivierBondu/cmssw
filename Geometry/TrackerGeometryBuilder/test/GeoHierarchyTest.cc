@@ -49,12 +49,14 @@
 
 template<typename Det>
 struct Print {
+  const TrackerTopology* m_tTopo;
+  explicit Print(const TrackerTopology* tTopo) : m_tTopo(tTopo) {}
   // typedef edm::TrieNode<Det> const node;
   void operator()(Det det, std::string const & label) const {
     if (!det) return; 
     for (size_t i=0; i<label.size();++i)
       std::cout << int(label[i]) <<'/';
-    std::cout << " " << det->geographicalId() << std::endl;
+    std::cout << " " << m_tTopo->print(det->geographicalId()) << std::endl;
   }
   
 };
@@ -109,7 +111,7 @@ void constructAndDumpTrie(const TrackerTopology* tTopo, Iter b, Iter e) {
   }
   
   try {
-    Print<Det> pr;
+    Print<Det> pr{tTopo};
     edm::walkTrie(pr,*trie.initialNode());
     std::cout << std::endl; 
 
