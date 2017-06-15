@@ -1,5 +1,3 @@
-#include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
-#include "DataFormats/SiPixelDetId/interface/PXFDetId.h"
 #include "Geometry/TrackerGeometryBuilder/interface/trackerHierarchy.h"
 
 #include<string>
@@ -13,10 +11,9 @@ std::string trackerHierarchy(const TrackerTopology* tTopo, unsigned int rawid) {
     // PXB
   case 1:
     {
-      PXBDetId module(rawid);
-      char theLayer  = module.layer();
-      char theLadder = module.ladder();
-      char theModule = module.module();
+      char theLayer  = tTopo->layer(id);
+      char theLadder = tTopo->pxbLadder(id);
+      char theModule = tTopo->module(id);
       char key[] = { 1, theLayer , theLadder, theModule};
       return std::string(key,4);
     }
@@ -24,13 +21,12 @@ std::string trackerHierarchy(const TrackerTopology* tTopo, unsigned int rawid) {
     // P1XF
   case 2:
     {
-      PXFDetId module(rawid);
-      char thePanel  = module.panel();
-      char theDisk   = module.disk();
-      char theBlade  = module.blade();
-      char theModule = module.module();
+      char thePanel  = tTopo->pxfPanel(id);
+      char theDisk   = tTopo->pxfDisk(id);
+      char theBlade  = tTopo->pxfBlade(id);
+      char theModule = tTopo->module(id);
       char key[] = { 2,
-		     char(module.side()),
+		     char(tTopo->side(id)),
 		     thePanel , theDisk, 
 		     theBlade, theModule};
       return std::string(key,6);
@@ -39,9 +35,9 @@ std::string trackerHierarchy(const TrackerTopology* tTopo, unsigned int rawid) {
   // TIB
   case 3:
     {
-      char            theLayer  = tTopo->layer(rawid);
-      std::vector<unsigned int> theString = tTopo->tibStringInfo(rawid);
-      char             theModule = tTopo->module(rawid);
+      char            theLayer  = tTopo->layer(id);
+      std::vector<unsigned int> theString = tTopo->tibStringInfo(id);
+      char             theModule = tTopo->module(id);
       //side = (theString[0] == 1 ) ? "-" : "+";
       //part = (theString[1] == 1 ) ? "int" : "ext";
       char key[] = { 3, 
@@ -50,64 +46,64 @@ std::string trackerHierarchy(const TrackerTopology* tTopo, unsigned int rawid) {
 		     char(theString[1]), 
 		     char(theString[2]), 
 		     theModule,
-		     char(tTopo->tibGlued(rawid) ? tTopo->isStereo(rawid)+1 : 0)
+		     char(tTopo->tibGlued(id) ? tTopo->isStereo(id)+1 : 0)
       };
-      return std::string(key, tTopo->tibGlued(rawid) ? 7 : 6);
+      return std::string(key, tTopo->tibGlued(id) ? 7 : 6);
     }
     
     // TID
   case 4:
     {
-      unsigned int         theDisk   = tTopo->tidWheel(rawid);
-      unsigned int         theRing   = tTopo->tidRing(rawid);
-      // side = (tTopo->tidSide(rawid) == 1 ) ? "-" : "+";
-      // part = (tTopo->tidOrder(rawid) == 1 ) ? "back" : "front";
+      unsigned int         theDisk   = tTopo->tidWheel(id);
+      unsigned int         theRing   = tTopo->tidRing(id);
+      // side = (tTopo->side(id) == 1 ) ? "-" : "+";
+      // part = (tTopo->tidOrder(id) == 1 ) ? "back" : "front";
       char key[] = { 4, 
-		     char(tTopo->tidSide(rawid)),
+		     char(tTopo->side(id)),
 		     char(theDisk) , 
 		     char(theRing),
-		     char(tTopo->tidOrder(rawid)), 
-		     char(tTopo->tidModule(rawid)),
-		     char(tTopo->tidGlued(rawid) ? tTopo->isStereo(rawid)+1 : 0)
+		     char(tTopo->tidOrder(id)), 
+		     char(tTopo->module(id)),
+		     char(tTopo->tidGlued(id) ? tTopo->isStereo(id)+1 : 0)
       };
-      return std::string(key,tTopo->tidGlued(rawid) ? 7 : 6);
+      return std::string(key,tTopo->tidGlued(id) ? 7 : 6);
     }
     
     // TOB
   case 5:
     {
-      unsigned int              theLayer  = tTopo->layer(rawid);
-      unsigned int              theModule = tTopo->module(rawid);
-      //	side = (tTopo->tobSide(rawid) == 1 ) ? "-" : "+";
+      unsigned int              theLayer  = tTopo->layer(id);
+      unsigned int              theModule = tTopo->module(id);
+      //	side = (tTopo->side(id) == 1 ) ? "-" : "+";
       char key[] = { 5, char(theLayer) , 
-		     char(tTopo->tobSide(rawid)), 
-		     char(tTopo->tobRod(rawid)), 
+		     char(tTopo->side(id)), 
+		     char(tTopo->tobRod(id)), 
 		     char(theModule),
-		     char(tTopo->tobGlued(rawid) ? tTopo->isStereo(rawid)+1 : 0)
+		     char(tTopo->tobGlued(id) ? tTopo->isStereo(id)+1 : 0)
       };
-      return std::string(key, tTopo->tobGlued(rawid) ?  6 : 5);
+      return std::string(key, tTopo->tobGlued(id) ?  6 : 5);
     }
     
     // TEC
   case 6:
     {
-      unsigned int              theWheel  = tTopo->tecWheel(rawid);
-      unsigned int              theModule = tTopo->module(rawid);
-      unsigned int              theRing   = tTopo->tecRing(rawid);
-      //	side  = (tTopo->tecSide(rawid) == 1 ) ? "-" : "+";
-      //	petal = (tTopo->tecOrder(rawid) == 1 ) ? "back" : "front";
-      // int out_side  = (tTopo->tecSide(rawid) == 1 ) ? -1 : 1;
+      unsigned int              theWheel  = tTopo->tecWheel(id);
+      unsigned int              theModule = tTopo->module(id);
+      unsigned int              theRing   = tTopo->tecRing(id);
+      //	side  = (tTopo->side(id) == 1 ) ? "-" : "+";
+      //	petal = (tTopo->tecOrder(id) == 1 ) ? "back" : "front";
+      // int out_side  = (tTopo->side(id) == 1 ) ? -1 : 1;
       
       char key[] = { 6, 
-		     char(tTopo->tecSide(rawid)),
+		     char(tTopo->side(id)),
 		     char(theWheel),
-		     char(tTopo->tecOrder(rawid)), 
-		     char(tTopo->tecPetalNumber(rawid)),
+		     char(tTopo->tecOrder(id)), 
+		     char(tTopo->tecPetalNumber(id)),
 		     char(theRing),
 		     char(theModule),
-		     char(tTopo->tecGlued(rawid) ? tTopo->isStereo(rawid)+1 : 0)
+		     char(tTopo->tecGlued(id) ? tTopo->isStereo(id)+1 : 0)
       };
-      return std::string(key, tTopo->tecGlued(rawid) ? 8 : 7);
+      return std::string(key, tTopo->tecGlued(id) ? 8 : 7);
     }
   default:
     return std::string();
